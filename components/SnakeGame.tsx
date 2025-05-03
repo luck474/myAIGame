@@ -24,6 +24,7 @@ const SnakeGame: React.FC = () => {
   const [playerName, setPlayerName] = useState('');
   const [nameEntered, setNameEntered] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
 
   const fetchLeaderboard = async () => {
     try {
@@ -144,6 +145,56 @@ const SnakeGame: React.FC = () => {
   }, [direction, gameOver, isPlaying, nameEntered]);
 
   useEffect(() => {
+    const handleTouchStart = (event: TouchEvent) => {
+      if (!nameEntered || gameOver || isPlaying) return;
+      const touch = event.touches[0];
+      setTouchStart({ x: touch.clientX, y: touch.clientY });
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!nameEntered || gameOver || !touchStart) return;
+      const touch = event.touches[0];
+      const diffX = touch.clientX - touchStart.x;
+      const diffY = touch.clientY - touchStart.y;
+
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        if (diffX > 30 && direction.x === 0) {
+          setDirection({ x: 1, y: 0 });
+          setTouchStart(null);
+          setIsPlaying(true);
+        } else if (diffX < -30 && direction.x === 0) {
+          setDirection({ x: -1, y: 0 });
+          setTouchStart(null);
+          setIsPlaying(true);
+        }
+      } else {
+        if (diffY > 30 && direction.y === 0) {
+          setDirection({ x: 0, y: 1 });
+          setTouchStart(null);
+          setIsPlaying(true);
+        } else if (diffY < -30 && direction.y === 0) {
+          setDirection({ x: 0, y: -1 });
+          setTouchStart(null);
+          setIsPlaying(true);
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      setTouchStart(null);
+    };
+
+    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [direction, gameOver, isPlaying, nameEntered, touchStart]);
+
+  useEffect(() => {
     if (isPlaying && !gameOver) {
       const gameLoop = setInterval(moveSnake, 100);
       return () => clearInterval(gameLoop);
@@ -153,25 +204,25 @@ const SnakeGame: React.FC = () => {
   const handleStartGame = () => {
     if (playerName.trim()) {
       setNameEntered(true);
-      setIsPlaying(false); // 等待用户按空格开始
+      setIsPlaying(false); // 等待用户按空格或触摸开始
     }
   };
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center p-2 sm:p-8 max-w-full overflow-auto">
       <h1 className="text-2xl font-bold mb-4">贪吃蛇游戏</h1>
       {!nameEntered ? (
-        <div className="mb-4 flex flex-col items-center">
+        <div className="mb-4 flex flex-col items-center w-full sm:w-64">
           <input
             type="text"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             placeholder="请输入您的名字"
-            className="border p-2 mb-2 w-64"
+            className="border p-2 mb-2 w-full"
           />
           <button
             onClick={handleStartGame}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
+            className="bg-blue-500 text-white px-4 py-2 rounded w-full"
             disabled={!playerName.trim()}
           >
             开始游戏
@@ -179,13 +230,13 @@ const SnakeGame: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="mb-4">
+          <div className="mb-4 text-center">
             <p>玩家: {playerName}</p>
             <p>分数: {score}</p>
-            <p>{gameOver ? '游戏结束！按空格键重新开始' : isPlaying ? '游戏中...' : '按空格键开始'}</p>
+            <p>{gameOver ? '游戏结束！按空格键或滑动重新开始' : isPlaying ? '游戏中...' : '按空格键或滑动开始'}</p>
           </div>
           <div
-            className="grid border-2 border-gray-300"
+            className="grid border-2 border-gray-300 mx-auto"
             style={{
               gridTemplateColumns: `repeat(${GRID_WIDTH}, ${GRID_SIZE}px)`,
               gridTemplateRows: `repeat(${GRID_HEIGHT}, ${GRID_SIZE}px)`,
@@ -209,20 +260,20 @@ const SnakeGame: React.FC = () => {
           </div>
         </>
       )}
-      <div className="mt-4">
-        <h2 className="text-xl font-bold mb-2">排行榜</h2>
-        <table className="border-collapse border border-gray-300">
+      <div className="mt-4 w-full sm:w-64 overflow-auto">
+        <h2 className="text-xl font-bold mb-2 text-center">排行榜</h2>
+        <table className="border-collapse border border-gray-300 w-full">
           <thead>
             <tr>
-              <th className="border border-gray-300 p-2">玩家</th>
-              <th className="border border-gray-300 p-2">分数</th>
+              <th className="border border-gray-300 p-1 sm:p-2 text-sm sm:text-base">玩家</th>
+              <th className="border border-gray-300 p-1 sm:p-2 text-sm sm:text-base">分数</th>
             </tr>
           </thead>
           <tbody>
             {leaderboard.map((entry, index) => (
               <tr key={index}>
-                <td className="border border-gray-300 p-2">{entry.player_name}</td>
-                <td className="border border-gray-300 p-2">{entry.score}</td>
+                <td className="border border-gray-300 p-1 sm:p-2 text-sm sm:text-base truncate">{entry.player_name}</td>
+                <td className="border border-gray-300 p-1 sm:p-2 text-sm sm:text-base">{entry.score}</td>
               </tr>
             ))}
           </tbody>
